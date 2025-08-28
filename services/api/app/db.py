@@ -37,7 +37,7 @@ queue = Table(
     UniqueConstraint("player_id", name="uq_queue_player"),
 )
 
-Index("queue_search_index", queue.c.enqueued_at, queue.c.region)
+Index("queue_search_index", queue.c.region, queue.c.enqueued_at)
 
 matches = Table(
     "matches", metadata,
