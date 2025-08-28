@@ -1,0 +1,55 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+*.manifest
+*.spec
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# ---- Pytest / Coverage ----
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- Build / Packaging ----
+build/
+dist/
+*.lock
+*.log
+
+# ---- Docker ----
+*.pid
+*.seed
+*.pid.lock
+*.tar
+.deploy/
+
+# ---- System ----
+.DS_Store
+Thumbs.db
+
+# ---- Project specific ----
+# test databases, temporary files
+*.db
+*.sqlite3
+
+# If you dump test outputs or tmp files
+tmp/
+logs/

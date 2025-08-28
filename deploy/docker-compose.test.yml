@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  postgres-test:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: game_test
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  redis-test:
+    image: redis:7
+    ports: ["6380:6379"]
+
+  # API for E2E (HTTP)
+  api-test:
+    build: ../services/api
+    environment:
+      DB_DSN: postgresql+psycopg://postgres:postgres@postgres-test:5432/game_test
+      API_KEY: dev
+      CELERY_BROKER_URL: redis://redis-test:6379/0
+      CELERY_RESULT_BACKEND: redis://redis-test:6379/1
+    depends_on:
+      postgres-test: { condition: service_healthy }
+      redis-test: { condition: service_started }
+    ports: ["8081:8080"]
+
+  # TESTS unit/integration for API
+  api-tests:
+    build: ../services/api
+    working_dir: /app
+    environment:
+      TEST_DB_URL: postgresql+psycopg://postgres:postgres@postgres-test:5432/game_test
+      CELERY_EAGER: "true"
+    volumes:
+      - ../services/api:/app:rw
+    depends_on:
+      postgres-test: { condition: service_healthy }
+      redis-test: { condition: service_started }
+    command: >
+      sh -c "pip install -e . && pip install -q pytest &&
+              pytest -q -m 'unit or integration'"
+
+  # # TESTS unit/integration for MATCHER
+  # matcher-tests:
+  #   build: ../services/matcher
+  #   working_dir: /app
+  #   environment:
+  #     TEST_DB_URL: postgresql+psycopg://postgres:postgres@postgres-test:5432/game_test
+  #     CELERY_EAGER: "true"
+  #     CELERY_BROKER_URL: redis://redis-test:6379/0
+  #     CELERY_RESULT_BACKEND: redis://redis-test:6379/1
+  #   volumes:
+  #     - ../services/matcher:/app:rw
+  #   depends_on:
+  #     postgres-test: { condition: service_healthy }
+  #     redis-test: { condition: service_started }
+  #   command: >
+  #     sh -c "pip install -e . && pip install -q pytest &&
+  #            pytest -q -m 'unit or integration'"
+
+  # TESTER E2E (HTTP → api-test)
+  e2e-tests:
+    image: python:3.12-slim
+    working_dir: /tests
+    volumes:
+      - ../tests/e2e:/tests:ro
+    environment:
+      API_BASE_URL: http://api-test:8080
+      API_KEY: dev
+    depends_on:
+      api-test: { condition: service_started }
+    command: >
+      sh -c "pip install -q pytest httpx &&
+             pytest -q -m 'e2e'"
+

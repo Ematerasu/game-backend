@@ -1,0 +1,13 @@
+[project]
+name = "gamebackend-api"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "sqlalchemy", "psycopg[binary]", "pydantic",
+  "httpx", "celery", "redis"
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
