@@ -75,10 +75,10 @@ def register(body: RegisterIn, x_idempotency_key: str | None = Header(None)):
         )
     with engine.begin() as conn:
         conn.execute(
-            text("""INSERT INTO players (player_id, region, mu, sigma, last_active)
-                    VALUES (:pid, :reg, 25.0, 8.333, NOW() AT TIME ZONE 'UTC')
+            text("""INSERT INTO players (player_id, username, region, mu, sigma, last_active)
+                    VALUES (:pid, :username, :reg, 25.0, 8.333, NOW() AT TIME ZONE 'UTC')
                     ON CONFLICT (player_id) DO NOTHING"""),
-            {"pid": player_id, "reg": body.region},
+            {"pid": player_id, "username": body.username, "reg": body.region},
         )
     token = create_access_token(sub=player_id, roles=["player"])
     return {"player_id": player_id, "access_token": token, "token_type": "bearer"}

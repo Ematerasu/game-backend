@@ -1,11 +1,13 @@
+from datetime import datetime, timezone
 import pytest
-from sqlalchemy import text
+from sqlalchemy import insert, text
 
 from .dbcase import DBTestCase
 from app.services.matchmaking_service import (
     enqueue_player, dequeue_player, get_queue_status,
     get_match_by_id, list_latest_matches, report_result_db, report_result_with_task
 )
+from app.db import matches
 
 @pytest.mark.integration
 class TestMatchmaking(DBTestCase):
@@ -17,13 +19,24 @@ class TestMatchmaking(DBTestCase):
         ), {"pid": pid, "name": name, "region": region, "mu": mu, "sigma": sigma})
         self.session.flush()
 
-    def seed_match(self, mid="m1", region="EUW", status="created", quality=0.7, players=None):
-        if players is None:
-            players = ["p1","p2","p3","p4","p5","p6","p7","p8","p9","p10"]
-        self.session.execute(text("""
-            INSERT INTO matches (match_id, region, status, quality, players, created_at)
-            VALUES (:mid, :region, :status, :quality, :players, CURRENT_TIMESTAMP)
-        """), {"mid": mid, "region": region, "status": status, "quality": quality, "players": players})
+    def seed_match(self, mid="m1", region="EUW", status="created", quality=0.7, teamA=None, teamB=None):
+        if teamA is None:
+            teamA = [{"player_id": f"a{i}", "mu": 25.0, "sigma": 8.333} for i in range(1, 6)]
+        if teamB is None:
+            teamB = [{"player_id": f"b{i}", "mu": 25.0, "sigma": 8.333} for i in range(1, 6)]
+
+        payload = {"teamA": teamA, "teamB": teamB}
+
+        self.session.execute(
+            insert(matches).values(
+                match_id=mid,
+                players=payload,
+                created_at=datetime.now(timezone.utc),
+                region=region,
+                quality=quality,
+                status=status,
+            )
+        )
         self.session.flush()
 
     def test_enqueue_status_dequeue(self):

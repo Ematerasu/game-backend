@@ -1,5 +1,4 @@
-version: "3.9"
-
+name: gamebackend-test
 services:
   postgres-test:
     image: postgres:16
@@ -30,6 +29,11 @@ services:
       postgres-test: { condition: service_healthy }
       redis-test: { condition: service_started }
     ports: ["8081:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport sys,urllib.request\nu='http://localhost:8080/healthz'\ntry:\n  urllib.request.urlopen(u,timeout=2)\n  sys.exit(0)\nexcept Exception:\n  sys.exit(1)\nPY"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
 
   # TESTS unit/integration for API
   api-tests:
@@ -75,7 +79,7 @@ services:
       API_BASE_URL: http://api-test:8080
       API_KEY: dev
     depends_on:
-      api-test: { condition: service_started }
+      api-test: { condition: service_healthy }
     command: >
       sh -c "pip install -q pytest httpx &&
              pytest -q -m 'e2e'"
