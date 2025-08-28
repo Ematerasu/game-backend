@@ -5,6 +5,8 @@ from celery import Celery
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 from trueskill import Rating, rate
+from time import perf_counter
+from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
 celery_app = Celery(
     "matcher",
@@ -22,6 +24,25 @@ engine = create_engine(DB_DSN, pool_pre_ping=True)
 
 REGIONS = os.getenv("REGIONS", "EUW").split(",")
 BETA = float(os.getenv("MATCH_BETA", "0.1"))
+
+MATCHES_CREATED = Counter(
+    "matches_created_total", "Number of matches created by worker", ["region"]
+)
+MATCH_TICK_LAT = Histogram(
+    "match_tick_latency_seconds", "Latency of one match_tick execution"
+)
+QUEUE_DEPTH_G = Gauge(
+    "queue_depth_gauge", "Current queue depth per region", ["region"]
+)
+RESULTS_APPLIED = Counter(
+    "match_result_applied_total", "Applied match results", ["result"]
+)
+RESULTS_ERRORS = Counter(
+    "match_result_errors_total", "Errors applying results"
+)
+
+METRICS_PORT = int(os.getenv("METRICS_PORT", "8001"))
+start_http_server(METRICS_PORT)
 
 def _score_split(teamA, teamB):
     muA = sum(p["mu"] for p in teamA) / len(teamA)
@@ -100,9 +121,15 @@ def _insert_match(conn, match_id, region, teamA, teamB, quality):
 @celery_app.task(name="matcher.worker.match_tick")
 def match_tick():
     made = 0
+    t0 = perf_counter()
     try:
         with engine.begin() as conn:
             for region in REGIONS:
+                qcount = conn.execute(
+                    text("SELECT COUNT(*) FROM queue WHERE region = :r"),
+                    {"r": region},
+                ).scalar_one()
+                QUEUE_DEPTH_G.labels(region=region).set(qcount)
                 while True:
                     rows = _fetch_4_locked(conn, region)
                     if len(rows) < 4:
@@ -113,9 +140,12 @@ def match_tick():
                     _insert_match(conn, match_id, region, teamA, teamB, quality)
                     _delete_from_queue(conn, [p["player_id"] for p in players4])
                     made += 1
+                    MATCHES_CREATED.labels(region=region).inc()
     except OperationalError as e:
         # DB hiccup; let beat call next round
+        MATCH_TICK_LAT.observe(perf_counter() - t0)
         return {"status": "db-error", "err": str(e)}
+    MATCH_TICK_LAT.observe(perf_counter() - t0)
     return {"status": "ok", "matches_created": made}
 
 
@@ -169,7 +199,8 @@ def apply_result(match_id: str, winner_team: str):
                 """),
                 {"mid": match_id, "wt": winner_team},
             )
-
+        RESULTS_APPLIED.labels(result=winner_team).inc()
         return {"status": "ok", "match_id": match_id, "winner": winner_team}
     except Exception as e:
+        RESULTS_ERRORS.inc()
         return {"status": "error", "match_id": match_id, "err": str(e)}

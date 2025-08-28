@@ -56,7 +56,7 @@ def get_match(match_id: str):
         return get_match_by_id(conn, match_id)
 
 @router.get("/matches/latest")
-def latest_matches(limit: int = Query(5, ge=1, le=50)):
+def latest_matches(limit: int = Query(5, ge=1, le=100)):
     with db.engine.begin() as conn:
         return list_latest_matches(conn, limit)
 

@@ -4,3 +4,4 @@ psycopg[binary]>=3.2.1
 python-dotenv>=1.0.1
 redis>=5.0.0
 trueskill>=0.4.5
+prometheus-fastapi-instrumentator>=6.1.0

@@ -44,7 +44,7 @@ def leaderboard(limit: int = 20):
     with engine.begin() as conn:
         rows = conn.execute(
             text("""
-                SELECT player_id, mu, sigma, (mu - 3*sigma) AS cr
+                SELECT username, mu, sigma, (mu - 3*sigma) AS cr
                 FROM players
                 ORDER BY cr DESC
                 LIMIT :lim
@@ -55,7 +55,7 @@ def leaderboard(limit: int = 20):
     return [
         {
             "rank": i+1,
-            "player_id": r["player_id"],
+            "username": r["username"],
             "mu": r["mu"],
             "sigma": r["sigma"],
             "conservative_rating": r["cr"],

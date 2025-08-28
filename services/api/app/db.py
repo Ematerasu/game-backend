@@ -1,7 +1,7 @@
 import os, time
 from sqlalchemy import (
     create_engine, MetaData, Table, Column, String, Float, JSON, DateTime,
-    UniqueConstraint, ForeignKey
+    UniqueConstraint, ForeignKey, Index
 )
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import Enum as PgEnum
@@ -19,7 +19,7 @@ RegionsEnum = PgEnum(
 players = Table(
     "players", metadata,
     Column("player_id", String, primary_key=True),
-    Column("username", String, nullable=False),
+    Column("username", String, unique=True, nullable=False),
     Column("region", RegionsEnum, nullable=False),
     Column("mu", Float, nullable=False),
     Column("sigma", Float, nullable=False),
@@ -36,6 +36,8 @@ queue = Table(
     Column("constraints", JSON, nullable=True),
     UniqueConstraint("player_id", name="uq_queue_player"),
 )
+
+Index("queue_search_index", queue.c.enqueued_at, queue.c.region)
 
 matches = Table(
     "matches", metadata,

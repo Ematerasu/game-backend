@@ -81,6 +81,5 @@ services:
     depends_on:
       api-test: { condition: service_healthy }
     command: >
-      sh -c "pip install -q pytest httpx &&
-             pytest -q -m 'e2e'"
+      sh -c "pip install -q pytest httpx && pytest -q -m 'e2e'"
 
